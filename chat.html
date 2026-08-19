@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuditJE — Apoio à Análise Documental</title>
+<style>
+  /* Tipografia: stack do sistema (Segoe UI/-apple-system) — sem @import externo,
+     alinhado à CSP do MV3 e ao princípio "tudo local, sem CDN" do projeto. */
+
+  /* ── Design tokens — AuditJE (modo escuro, padrão) ────────────────── */
+  :root {
+    --bg:          #0a0f1a;
+    --surface:     #0d1420;
+    --surface2:    #111d2e;
+    --surface3:    #162338;
+    --border:      #1e3050;
+    --border-soft: #152540;
+    --accent:      #2356a8;
+    --accent2:     #1a7a45;
+    --accent-glow: rgba(35, 86, 168, 0.20);
+    --accent-dim:  rgba(35, 86, 168, 0.09);
+    --header-grad: linear-gradient(135deg, #1a5276, #2980b9); /* barra do header — estilo Mapeador PJe */
+    --text:        #e2ecff;
+    --text-soft:   #94a3c4;
+    --text-muted:  #8294bd;  /* a11y M6: era #4a5a7a (2.8:1, reprova) → ~6:1 sobre bg */
+    --success:     #34d399;
+    --warning:     #fbbf24;
+    --error:       #f87171;
+    --sf-ok-bg:#0f3a2c; --sf-ok-tx:#6ee7b7; --sf-ok-bd:rgba(52,211,153,.4);
+    --sf-cf-bg:#2a2410; --sf-cf-tx:#fbbf24; --sf-cf-bd:rgba(251,191,36,.44);
+    --sf-pd-bg:#3a1620; --sf-pd-tx:#fca5a5; --sf-pd-bd:rgba(248,113,113,.44);
+    --sf-na-bg:#1c2738; --sf-na-tx:#6b7a93; --sf-na-bd:#27324a;
+    --radius-sm:   6px;
+    --radius:      10px;
+    --radius-lg:   14px;
+
+    /* ── Tipografia ─────────────────────────────────────────────────── */
+    --font-sans:   -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-mono:   'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --fs-xs:       10px;   /* labels, badges, metadados secundários      */
+    --fs-sm:       11px;   /* labels de seção, sub-rótulos, pills        */
+    --fs-base:     13px;   /* texto corrido, cards, listas               */
+    --fs-md:       14px;   /* títulos de card, botões principais         */
+    --fs-lg:       16px;   /* saudação, cabeçalhos de painel             */
+  }
+
+  /* ── Design tokens — modo claro (cores PJe) ────────────────────────── */
+  [data-theme="light"] {
+    --bg:          #f0f4fb;
+    --surface:     #ffffff;
+    --surface2:    #f5f7fc;
+    --surface3:    #eaeff8;
+    --border:      #c5d0e8;
+    --border-soft: #dce4f0;
+    --accent:      #1a5276;
+    --accent2:     #1a7a45;
+    --accent-glow: rgba(26, 82, 118, 0.15);
+    --accent-dim:  rgba(26, 82, 118, 0.07);
+    --text:        #0f1e38;
+    --text-soft:   #3a4f72;
+    --text-muted:  #586b96;  /* a11y M6: era #8096b8 (2.7:1, reprova) → ~4.8:1 sobre bg */
+    --success:     #16a34a;
+    --warning:     #d97706;
+    --error:       #dc2626;
+    --sf-ok-bg:#d1fae5; --sf-ok-tx:#065f46; --sf-ok-bd:rgba(4,120,87,.3);
+    --sf-cf-bg:#fef3c7; --sf-cf-tx:#92400e; --sf-cf-bd:rgba(245,158,11,.4);
+    --sf-pd-bg:#fee2e2; --sf-pd-tx:#991b1b; --sf-pd-bd:rgba(220,38,38,.35);
+    --sf-na-bg:#f3f4f6; --sf-na-tx:#9ca3af; --sf-na-bd:#e5e7eb;
+    --radius-sm:   6px;
+    --radius:      10px;
+    --radius-lg:   14px;
+  }
+
+
+  /* ── Reset ─────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: var(--fs-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Gradient accent strip at the very top ─────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
+    background-size: 200% 100%;
+    animation: shimmer 4s linear infinite;
+    z-index: 100;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+  }
+
+  /* ── Header ────────────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    padding-top: 12px;
+    background: var(--header-grad);
+    color: #fff;
+    border-bottom: none;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .logo {
+    width: 32px; height: 32px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.16);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    box-shadow: none;
+  }
+
+  .header-brand { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+  .header-title {
+    font-size: var(--fs-md);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-subtitle {
+    font-size: var(--fs-sm);
+    color: rgba(255,255,255,0.82);
+    font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .badge-local {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.30);
+    color: #eaf4fb;
+    font-size: var(--fs-xs);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  .header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .btn-icon {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.22);
+    color: #fff;
+    width: 30px; height: 30px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-base);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .btn-icon:hover {
+    border-color: rgba(255,255,255,0.45);
+    color: #fff;
+    background: rgba(255,255,255,0.28);
+  }
+
+  /* ── Nav nível 1 (Tarefas / Análise documental) ───────────────────── */
+  #nav-l1 {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-soft);
+    flex-shrink: 0;
+    padding: 0 8px;
+    gap: 2px;
+  }
+
+  .aba-l1 {
+    position: relative;
+    padding: 10px 16px;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    transition: color 0.15s, background 0.15s;
+    user-select: none;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .aba-l1::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 16px; right: 16px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .aba-l1:hover { color: var(--text-soft); background: var(--surface2); }
+  .aba-l1.ativa { color: var(--accent); background: var(--accent-dim); }
+  .aba-l1.ativa::after { opacity: 1; }
+
+  /* ── Nav nível 2 (sub-abas dentro de Análise documental) ──────────── */
+  #nav-l2 {
+    display: none;    /* visível só quando Análise documental está ativa */
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-soft);
+    flex-shrink: 0;
+    padding: 0 8px;
+    gap: 2px;
+    align-items: center;
+  }
+  #nav-l2.visivel { display: flex; }
+
+  .aba-l2 {
+    position: relative;
+    padding: 8px 14px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    user-select: none;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+  .aba-l2::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 14px; right: 14px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .aba-l2:hover { color: var(--text-soft); background: var(--surface3); }
+  .aba-l2.ativa { color: var(--accent); }
+  .aba-l2.ativa::after { opacity: 1; }
+
+  /* Compatibilidade: .aba aponta para .aba-l1 (badges, etc.) */
+  .aba { display: none; } /* oculto — substituído por aba-l1/aba-l2 */
+
+  .aba-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: white;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    margin-left: 5px;
+    vertical-align: middle;
+    line-height: 1;
+  }
+
+  /* ── Toolbar (agora fica dentro do painel Verificação) ─────────────── */
+  #toolbar {
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  #docs-count {
+    margin-left: auto;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
+  /* Botão primário da toolbar — ação principal */
+  .btn-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--accent), #1d6fdc);
+    border: 1px solid rgba(35, 86, 168, 0.6);
+    color: #e8f0ff;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 6px rgba(35, 86, 168, 0.30);
+  }
+  .btn-tool:hover {
+    opacity: 0.88;
+    box-shadow: 0 2px 14px var(--accent-glow);
+  }
+
+  /* Botão secundário da toolbar — ação auxiliar */
+  .btn-tool.secundario {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    box-shadow: none;
+    opacity: 1;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .btn-tool.secundario:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .btn-tool.destaque {
+    border-color: rgba(79, 124, 255, 0.4);
+    color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .btn-tool.destaque:hover {
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  /* ── Panel scaffolding ─────────────────────────────────────────────── */
+  .painel { display: none; flex: 1; overflow-y: auto; min-height: 0; }
+  .painel.ativo { display: flex; flex-direction: column; }
+
+  /* ── Painel Análise (wrapper): não scroll próprio — delega aos filhos ── */
+  #painel-analise { overflow-y: hidden; }
+  #painel-analise.ativo { flex: 1; min-height: 0; }
+
+  /* ── Audit panel ───────────────────────────────────────────────────── */
+  #painel-auditoria { padding: 14px 14px; gap: 10px; }
+
+  /* ── CAND panel ────────────────────────────────────────────────────── */
+  #painel-cand  { padding: 14px; gap: 0; }
+  #painel-resumo { padding: 14px; gap: 0; }
+
+  /* ── Empty state ───────────────────────────────────────────────────── */
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--text-muted);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  #empty-state .icon {
+    font-size: 40px;
+    line-height: 1;
+    filter: drop-shadow(0 0 18px var(--accent-glow));
+    opacity: 0.5;
+  }
+
+  #empty-state h3 {
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--text-soft);
+    letter-spacing: -0.01em;
+  }
+
+  #empty-state p {
+    font-size: var(--fs-base);
+    line-height: 1.7;
+    max-width: 280px;
+    color: var(--text-muted);
+  }
+
+  /* ── Empty state — hints grid ──────────────────────────────────────── */
+  .empty-hints {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .empty-hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    text-align: left;
+    transition: border-color 0.15s;
+  }
+  .empty-hint:hover { border-color: var(--border); }
+
+  .empty-hint-icon { font-size: var(--fs-base); flex-shrink: 0; line-height: 1; opacity: 0.7; }
+
+  .empty-hint-body { display: flex; flex-direction: column; gap: 1px; }
+
+  .empty-hint-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-soft);
+  }
+
+  .empty-hint-desc {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* ── CAND empty state ──────────────────────────────────────────────── */
+  #cand-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  #cand-empty .icon { font-size: 40px; opacity: 0.3; }
+
+  #cand-empty p {
+    font-size: var(--fs-base);
+    line-height: 1.7;
+    max-width: 280px;
+  }
+
+  /* ── CAND items ────────────────────────────────────────────────────── */
+
+  /* Grid de 2 colunas: itens colapsados lado a lado; expandido vaza para full width */
+  .cand-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cand-grid .cand-item { margin-bottom: 0; }
+  .cand-grid .cand-item.expandido { grid-column: 1 / -1; }
+
+  .cand-item {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .cand-item:hover { border-color: var(--border); }
+
+  .cand-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    user-select: none;
+  }
+  .cand-item-header:hover { background: var(--surface3, var(--surface2)); }
+
+  .cand-chevron {
+    font-size: 9px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .cand-item.expandido .cand-chevron { transform: rotate(90deg); }
+
+  .cand-item-num {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    min-width: 22px;
+    text-align: right;
+  }
+
+  .cand-item-titulo {
+    flex: 1;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.005em;
+  }
+
+  .cand-item-status {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 3px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+  }
+  .cand-item-status.ok              { background: var(--sf-ok-bg); color: var(--sf-ok-tx); border: 1px solid var(--sf-ok-bd); }
+  .cand-item-status.nok             { background: var(--sf-pd-bg); color: var(--sf-pd-tx); border: 1px solid var(--sf-pd-bd); }
+  .cand-item-status.humano          { background: var(--sf-cf-bg); color: var(--sf-cf-tx); border: 1px solid var(--sf-cf-bd); }
+  .cand-item-status.pendente        { background: var(--sf-cf-bg); color: var(--sf-cf-tx); border: 1px solid var(--sf-cf-bd); }
+  .cand-item-status.nao_apresentado { background: var(--sf-pd-bg); color: var(--sf-pd-tx); border: 1px solid var(--sf-pd-bd); }
+  .cand-item-status.nao_aplica      { background: var(--sf-na-bg); color: var(--sf-na-tx); border: 1px solid var(--sf-na-bd); }
+
+  .cand-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-soft);
+    font-family: var(--font-mono);
+    flex-wrap: wrap;
+  }
+  .cand-consta-badge {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .cand-consta-badge.nada-consta { background: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .cand-consta-badge.consta      { background: color-mix(in srgb, var(--error) 10%, transparent);   color: var(--error);   border: 1px solid color-mix(in srgb, var(--error) 25%, transparent); }
+  .cand-consta-badge.indefinido  { background: transparent;                                          color: var(--text-muted); border: 1px solid var(--border); }
+
+  .cand-data-emissao {
+    font-size: var(--fs-base);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+  .cand-validade-badge {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .cand-validade-badge.valida    { background: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .cand-validade-badge.expirando { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); }
+  .cand-validade-badge.expirada  { background: color-mix(in srgb, var(--error) 10%, transparent);   color: var(--error);   border: 1px solid color-mix(in srgb, var(--error) 25%, transparent); }
+
+  .cand-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    max-height: 0;
+    padding: 0 14px;
+    transition: max-height 0.25s ease, padding 0.2s ease;
+  }
+  .cand-item.expandido .cand-item-body {
+    max-height: 2000px;
+    padding: 12px 14px;
+  }
+
+  .cand-obs-label {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .cand-obs-texto {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-base);
+    font-family: var(--font-mono);
+    resize: vertical;
+    min-height: 56px;
+    line-height: 1.6;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .cand-obs-texto:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+  }
+
+  .cand-copiar {
+    align-self: flex-end;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    font-family: var(--font-sans);
+  }
+  .cand-copiar:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  /* ── Primary button ────────────────────────────────────────────────── */
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    color: white;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
+    box-shadow: 0 2px 12px var(--accent-glow);
+    transition: opacity 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover {
+    opacity: 0.88;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  /* ── Scrollbars ────────────────────────────────────────────────────── */
+  .painel::-webkit-scrollbar { width: 5px; }
+  .painel::-webkit-scrollbar-track { background: transparent; }
+  .painel::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+  .painel::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  /* ── Processo info card — fixo ACIMA das abas ───────────────────────── */
+  #processo-info-card {
+    display: none;          /* ocultado até receber dados do processo */
+    flex-shrink: 0;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-base);
+    line-height: 1.6;
+  }
+
+  /* Cabeçalho do card (número do processo) */
+  #processo-info-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 16px 6px;
+    background: var(--surface3);
+    border-bottom: 1px solid var(--border-soft);
+    gap: 10px;
+  }
+  #processo-info-card .card-header-num {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  #processo-info-card .card-header-assoc {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #processo-info-card .card-header-assoc .card-val {
+    color: var(--text-soft);
+    font-weight: 600;
+  }
+
+  /* Botão copiar número do processo */
+  #processo-info-card .btn-copy-num {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    font-size: var(--fs-xs);
+    padding: 1px 6px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    line-height: 1.6;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  #processo-info-card .btn-copy-num:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  /* Corpo do card: 2 linhas de grade */
+  #processo-info-card .card-body {
+    padding: 6px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Linha de grade (row 1 e row 2) — grid de 5 colunas, proporção fixa
+     Linha 1: Requerente(2) | CPF(1) | DocIdent(1) | Cargo(1) | NomeUrna(1)
+     Linha 2: CargoComissao(1) | Ocupacao(1) | OcupComp(1) | Reeleicao(1) | CargoEletivo(1)
+     5 células × 1 coluna = 5 colunas; alinhadas entre as duas linhas */
+  #processo-info-card .card-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 2px;
+  }
+
+  /* Célula individual — estilo Notion */
+  #processo-info-card .card-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    cursor: default;
+    min-width: 0;
+    transition: background 0.12s;
+  }
+  #processo-info-card .card-cell:hover {
+    background: rgba(255,255,255,0.04);
+  }
+  /* grid-column overrides para células que ocupam mais de 1 coluna */
+  #processo-info-card .card-cell.span-2 { grid-column: span 2; }
+  /* flex-1 / flex-2 não são mais necessários no grid, mas mantidos para não quebrar nada */
+  #processo-info-card .card-cell.flex-1 { }
+  #processo-info-card .card-cell.flex-2 { }
+
+  /* Label com ícone + texto */
+  #processo-info-card .card-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    user-select: none;
+  }
+  #processo-info-card .card-label svg {
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  /* Valor */
+  #processo-info-card .card-val {
+    color: var(--text);
+    font-size: var(--fs-base);
+    font-weight: 500;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  #processo-info-card .card-val.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* Badge inline (para cargoComissao, reeleicao) */
+  #processo-info-card .card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+  }
+  #processo-info-card .card-badge.badge-success {
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+    border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
+  }
+  #processo-info-card .card-badge.badge-warning {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+    border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+  }
+  #processo-info-card .card-badge.badge-neutral {
+    background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    color: var(--text-soft);
+    border: 1px solid var(--border);
+  }
+
+  /* Aviso de desincompatibilização */
+  #processo-info-card [data-info="desincompat"] {
+    margin: 4px 8px 0;
+    padding: 5px 10px;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.4);
+    border-radius: var(--radius-sm);
+    color: var(--warning);
+    font-weight: 700;
+    font-size: var(--fs-xs);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Carregamento inicial de documentos ─────────────────────────────── */
+  #loading-docs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 20px 24px;
+    text-align: center;
+  }
+  #loading-docs .ld-titulo {
+    font-size: var(--fs-base);
+    font-weight: 600;
+    color: var(--text);
+  }
+  #loading-docs .ld-subtitulo {
+    font-size: var(--fs-sm);
+    color: var(--text-soft);
+    line-height: 1.5;
+  }
+  #loading-docs .ld-count {
+    font-size: var(--fs-sm);
+    color: var(--accent);
+    font-weight: 500;
+    min-height: 16px;
+  }
+  .ld-track {
+    width: 220px;
+    height: 5px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ld-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+    min-width: 6px;
+  }
+
+  /* ── Modal de edição (verificação humana individual / corrigir) ──────── */
+  .modal-edicao-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-edicao-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    min-width: 320px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  }
+  .modal-edicao-titulo {
+    font-weight: 700;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    letter-spacing: .06em;
+    margin-bottom: 10px;
+  }
+  .modal-edicao-nome {
+    font-size: var(--fs-base);
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .modal-edicao-radios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .modal-edicao-radios label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    font-size: var(--fs-base);
+    color: var(--text-muted);
+    transition: color 0.1s;
+  }
+  .modal-edicao-radios label:has(input:checked) { color: var(--text); }
+  .modal-edicao-obs-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 4px;
+  }
+  .modal-edicao-obs {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-family: var(--font-mono);
+    resize: vertical;
+    min-height: 52px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .modal-edicao-obs:focus { border-color: var(--accent); }
+  .modal-edicao-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+  .modal-edicao-btns .btn-cancelar {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .btn-editar-row {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    font-size: var(--fs-sm);
+    padding: 2px 7px;
+    cursor: pointer;
+    margin-left: 5px;
+    transition: border-color 0.1s, color 0.1s;
+  }
+  .btn-editar-row:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Progress text ─────────────────────────────────────────────────── */
+  #auditoria-progresso {
+    font-size: var(--fs-sm) !important;
+    font-family: var(--font-mono);
+    color: var(--text-muted) !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #auditoria-progresso::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+
+  /* ── Audit container card (created by JS) ──────────────────────────── */
+  #auditoria-container {
+    border-radius: var(--radius-lg) !important;
+    flex-shrink: 0;
+  }
+
+  /* ── Banner: tarefa ativa ─────────────────────────────────────────────── */
+  #banner-tarefa-ativa {
+    display: none;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, rgba(79,124,255,0.10), rgba(124,92,252,0.06));
+    border-bottom: 1px solid rgba(79,124,255,0.25);
+    padding: 7px 14px;
+    gap: 10px;
+    align-items: center;
+  }
+  #banner-tarefa-ativa.visivel { display: flex; }
+  .banner-tarefa-tipo {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    letter-spacing: .05em;
+    white-space: nowrap;
+  }
+  .banner-tarefa-info {
+    flex: 1;
+    font-size: var(--fs-sm);
+    color: var(--text-soft);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .banner-tarefa-timer {
+    font-size: var(--fs-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .banner-tarefa-concluir {
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.30);
+    color: var(--success);
+    padding: 4px 11px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    transition: background 0.15s;
+  }
+  .banner-tarefa-concluir:hover { background: rgba(34,197,94,0.22); }
+
+  /* ── Painel Atos Processuais ───────────────────────────────────────────── */
+  #painel-atos { padding: 0; gap: 0; flex-direction: column; }
+
+  #atos-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-soft);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  #atos-toolbar .atos-filtro {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  #atos-toolbar .atos-filtro:hover,
+  #atos-toolbar .atos-filtro.ativo {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  #atos-count {
+    margin-left: auto;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+  }
+
+  #atos-lista {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #atos-lista::-webkit-scrollbar { width: 5px; }
+  #atos-lista::-webkit-scrollbar-track { background: transparent; }
+  #atos-lista::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  .ato-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    transition: border-color 0.15s;
+  }
+  .ato-item:hover { border-color: var(--border); }
+  .ato-item.destaque-certidao { border-left: 3px solid var(--accent2); }
+  .ato-item.destaque-sentenca  { border-left: 3px solid var(--warning); }
+
+  .ato-data {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 44px;
+    padding-top: 2px;
+  }
+  .ato-data-dia {
+    font-size: var(--fs-md);
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+  .ato-data-mes {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .ato-data-ano {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .ato-corpo { flex: 1; min-width: 0; }
+  .ato-tipo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .ato-tipo-badge.tipo-movimento  { background: var(--accent-dim); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+  .ato-tipo-badge.tipo-certidao   { background: color-mix(in srgb, var(--accent2) 12%, transparent); color: var(--accent2); border: 1px solid color-mix(in srgb, var(--accent2) 28%, transparent); }
+  .ato-tipo-badge.tipo-sentenca   { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent); }
+  .ato-tipo-badge.tipo-peticao    { background: color-mix(in srgb, var(--text-muted) 10%, transparent); color: var(--text-soft); border: 1px solid var(--border); }
+
+  .ato-descricao {
+    font-size: var(--fs-base);
+    color: var(--text);
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .ato-descricao.vazio { color: var(--text-muted); font-style: italic; }
+
+  #atos-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    padding: 40px 24px;
+    text-align: center;
+  }
+  #atos-empty .icon { font-size: 36px; opacity: 0.3; }
+  #atos-empty p { font-size: var(--fs-base); line-height: 1.7; max-width: 260px; }
+
+  /* ── Painel Tarefas ────────────────────────────────────────────────────── */
+  #painel-tarefas { padding: 14px; gap: 10px; }
+
+  .tarefas-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .tarefas-titulo {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    flex: 1;
+  }
+  .btn-tarefas-atualizar {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-tarefas-atualizar:hover { border-color: var(--accent); color: var(--accent); }
+
+  .tarefa-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    transition: border-color 0.15s;
+  }
+  .tarefa-card:hover { border-color: var(--border); }
+  .tarefa-card.ativa { border-color: rgba(79,124,255,0.4); background: rgba(79,124,255,0.04); }
+
+  .tarefa-card-body { flex: 1; min-width: 0; }
+  .tarefa-card-tipo {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    letter-spacing: .04em;
+    margin-bottom: 2px;
+  }
+  .tarefa-card-processo {
+    font-size: var(--fs-base);
+    font-family: var(--font-mono);
+    color: var(--text);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tarefa-card-candidato {
+    font-size: var(--fs-base);
+    font-weight: 500;
+    color: var(--text-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tarefa-card-cargo { font-size: var(--fs-sm); color: var(--text-muted); }
+
+  .tarefa-card-status {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: .04em;
+    align-self: flex-start;
+  }
+  .tarefa-card-status.pendente     { background: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--warning); border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent); }
+  .tarefa-card-status.em_andamento { background: var(--accent-dim);                                   color: var(--accent);  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .tarefa-card-status.concluida    { background: color-mix(in srgb, var(--success) 8%, transparent);  color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 20%, transparent); }
+  .tarefa-card-status.cancelada    { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+
+  .btn-iniciar-tarefa {
+    background: var(--accent-dim);
+    border: 1px solid rgba(79,124,255,0.35);
+    color: var(--accent);
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    align-self: center;
+    transition: background 0.15s;
+  }
+  .btn-iniciar-tarefa:hover { background: rgba(79,124,255,0.18); }
+
+  /* ── Modal concluir tarefa ─────────────────────────────────────────────── */
+  #modal-concluir-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.65);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #modal-concluir-overlay.visivel { display: flex; }
+
+  /* ── Modal nova tarefa ─────────────────────────────────────────────────── */
+  #modal-nova-tarefa-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.65);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #modal-nova-tarefa-overlay.visivel { display: flex; }
+
+  /* ── Chefe: sub-tabs ───────────────────────────────────────────────────── */
+  .chefe-stab {
+    padding: 7px 14px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .chefe-stab:hover { color: var(--text-soft); }
+  .chefe-stab.ativa { color: var(--accent); border-bottom-color: var(--accent); }
+  .chefe-painel { display: none; }
+  .chefe-painel.ativo { display: block; }
+/* ── Semáforo do Relatório CAND (Fase 1) ─────────────────────────────── */
+.cnd-sf{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid;letter-spacing:.02em;white-space:nowrap}
+.cnd-sf.ok{background:var(--sf-ok-bg);color:var(--sf-ok-tx);border-color:var(--sf-ok-bd)}
+.cnd-sf.cf{background:var(--sf-cf-bg);color:var(--sf-cf-tx);border-color:var(--sf-cf-bd)}
+.cnd-sf.pd{background:var(--sf-pd-bg);color:var(--sf-pd-tx);border-color:var(--sf-pd-bd)}
+.cnd-sf.na{background:var(--sf-na-bg);color:var(--sf-na-tx);border-color:var(--sf-na-bd)}
+.cnd-legenda{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.cnd-resumo{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:11px 13px;margin-bottom:10px}
+.cnd-resumo .n{font-size:22px;font-weight:700;color:var(--text);line-height:1}
+.cnd-resumo .txt{flex:1;font-size:12px;color:var(--text)}
+.cnd-resumo .txt .sub{display:block;font-size:11px;color:var(--text-muted);margin-top:3px}
+.cnd-segctl{display:flex;gap:6px;margin:6px 0 4px;flex-wrap:wrap}
+.cnd-segbtn{flex:1;min-width:82px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);cursor:pointer;transition:border-color .15s,background .15s}
+.cnd-segbtn:hover{background:var(--surface)}
+.cnd-segbtn .t{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
+.cnd-segbtn .cap{font-size:9px;color:var(--text-muted);text-align:center;line-height:1.2}
+.cnd-segbtn.sel.ok{border-color:var(--sf-ok-bd);background:var(--sf-ok-bg)} .cnd-segbtn.sel.ok .t{color:var(--sf-ok-tx)}
+.cnd-segbtn.sel.cf{border-color:var(--sf-cf-bd);background:var(--sf-cf-bg)} .cnd-segbtn.sel.cf .t{color:var(--sf-cf-tx)}
+.cnd-segbtn.sel.pd{border-color:var(--sf-pd-bd);background:var(--sf-pd-bg)} .cnd-segbtn.sel.pd .t{color:var(--sf-pd-tx)}
+.cnd-segbtn.sel.na{border-color:var(--sf-na-bd);background:var(--sf-na-bg)} .cnd-segbtn.sel.na .t{color:var(--sf-na-tx)}
+.cnd-acao{display:flex;align-items:flex-start;gap:7px;margin:8px 0 2px;padding:8px 10px;border-radius:6px;font-size:11.5px;line-height:1.4}
+.cnd-acao.cf{background:var(--sf-cf-bg);color:var(--sf-cf-tx)}
+.cnd-acao.pd{background:var(--sf-pd-bg);color:var(--sf-pd-tx)}
+.cnd-detrow{margin:6px 0 2px;padding:8px 10px;background:var(--surface2);border:1px dashed var(--border);border-radius:6px}
+.cnd-detrow .dl{font-size:10px;color:var(--text-muted);margin-bottom:5px}
+.cnd-detrow .dbtns{display:flex;flex-wrap:wrap;gap:5px}
+.cnd-detrow .db{font-size:10px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+.cnd-detrow .db.on{border-color:var(--sf-cf-bd);background:var(--sf-cf-bg);color:var(--sf-cf-tx);font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="logo"><img src="public/logo-white-128.png" alt="" aria-hidden="true" style="width:20px;height:20px;display:block;"></div>
+    <div class="header-brand">
+      <div class="header-title">
+        AuditJE
+        <span class="badge-local">OCR LOCAL</span>
+      </div>
+      <div class="header-subtitle">Apoio à Análise Documental · PJe</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" id="btn-tema" title="Alternar tema claro/escuro">🌙</button>
+    <button class="btn-icon" id="btn-config" title="Configurações">⚙</button>
+    <button class="btn-icon" id="btn-fechar-painel" title="Fechar painel (Esc)" aria-label="Fechar painel">✕</button>
+    <button class="btn-icon" id="btn-clear" title="Limpar painel">🗑</button>
+  </div>
+</header>
+
+<!-- ── Modal de Configurações ────────────────────────────────────────────── -->
+<div id="modal-config-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:480px;max-width:95vw;box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+    <div style="font-weight:700;font-size:var(--fs-md);color:var(--accent);font-family:var(--font-mono);letter-spacing:.05em;margin-bottom:16px;">⚙ CONFIGURAÇÕES</div>
+
+    <div style="margin-bottom:16px;">
+      <label for="input-sheets-url" style="font-size:var(--fs-sm);color:var(--text-muted);display:block;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;">URL do Google Apps Script</label>
+      <input id="input-sheets-url" type="text" placeholder="https://script.google.com/macros/s/..." spellcheck="false"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:8px 10px;outline:none;font-family:var(--font-mono);">
+      <div style="font-size:var(--fs-xs);color:var(--text-muted);margin-top:5px;line-height:1.5;">
+        Cole aqui a URL do Web App publicado no Google Apps Script.<br>
+        Veja o arquivo <code style="color:var(--accent)">google_apps_script.js</code> para instruções de instalação.
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label for="select-config-modo" style="font-size:var(--fs-sm);color:var(--text-muted);display:block;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;">Modo</label>
+        <select id="select-config-modo"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+          <option value="">— Não configurado —</option>
+          <option value="servidor">Servidor</option>
+          <option value="chefe">Chefe</option>
+        </select>
+      </div>
+      <div>
+        <label for="input-config-nome" style="font-size:var(--fs-sm);color:var(--text-muted);display:block;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;">Seu nome</label>
+        <input id="input-config-nome" type="text" placeholder="Nome completo" spellcheck="false"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="btn-config-cancelar" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:7px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-family:var(--font-sans);">Cancelar</button>
+      <button id="btn-config-salvar" style="background:var(--accent);border:none;color:#fff;padding:7px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-weight:600;font-family:var(--font-sans);">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Card do processo (fixo acima das abas) ─────────────────────────── -->
+<div id="processo-info-card"></div>
+
+<!-- ── Banner: tarefa ativa ──────────────────────────────────────────── -->
+<div id="banner-tarefa-ativa">
+  <span class="banner-tarefa-tipo" id="banner-tarefa-tipo"></span>
+  <span class="banner-tarefa-info" id="banner-tarefa-info"></span>
+  <span class="banner-tarefa-timer" id="banner-tarefa-timer"></span>
+  <button class="banner-tarefa-concluir" id="btn-banner-concluir">✅ Concluir</button>
+</div>
+
+<!-- ── Nav nível 1 ─────────────────────────────────────────────────── -->
+<div id="nav-l1" role="tablist" aria-label="Seções principais">
+  <div class="aba-l1 ativa" id="nav-analise" data-secao="analise" role="tab" tabindex="0" aria-selected="true">⚖ Análise documental</div>
+  <div class="aba-l1" id="nav-hipoteses" data-secao="hipoteses" role="tab" tabindex="0" aria-selected="false">⚡ Sugestões de texto</div>
+</div>
+
+<!-- ── Nav nível 2 (sub-abas de Análise) ──────────────────────────────── -->
+<div id="nav-l2" role="tablist" aria-label="Sub-abas de Análise documental">
+  <div class="aba-l2 ativa" id="aba-l2-verificacao" data-subpainel="auditoria" role="tab" tabindex="0" aria-selected="true">Verificação</div>
+  <div class="aba-l2" id="aba-l2-qualificacao" data-subpainel="qualificacao" role="tab" tabindex="0" aria-selected="false">Qualificação</div>
+  <div class="aba-l2" id="aba-l2-cand" data-subpainel="cand" role="tab" tabindex="0" aria-selected="false">Requisitos CAND</div>
+  <div class="aba-l2" id="aba-l2-resumo" data-subpainel="resumo" role="tab" tabindex="0" aria-selected="false">Resumo</div>
+</div>
+
+<!-- ── IDs legados para compatibilidade com render.js / tarefas.js ──── -->
+<!-- aba-cand e aba-resumo apontam para os elementos de l2 via alias JS -->
+<span id="aba-cand"   style="display:none;"></span>
+<span id="aba-resumo" style="display:none;"></span>
+<div id="abas" style="display:none;"></div>
+
+
+<!-- ── Painel Análise documental (wrapper) ─────────────────────────────── -->
+<div id="painel-analise" class="painel" style="flex-direction:column;">
+
+  <!-- Toolbar dentro do painel Verificação -->
+  <div id="toolbar">
+    <button class="btn-tool" id="btn-auditoria-principal"
+      title="Documentos apresentados pelo candidato">
+      📋 Docs. apresentados
+    </button>
+    <button class="btn-tool" id="btn-docs-novos"
+      title="Ver documentos já analisados e selecionar novos para auditoria complementar"
+      style="display:none;">
+      🆕 Docs. novos
+    </button>
+    <button class="btn-tool secundario" id="btn-auditoria"
+      title="Todos os documentos do processo">
+      🔎 Processo completo
+    </button>
+    <span id="docs-count"></span>
+  </div>
+
+  <!-- Sub-painéis de Análise documental -->
+  <div id="painel-auditoria" class="painel ativo" style="flex:1;min-height:0;">
+    <div id="empty-state">
+      <div class="icon">⚖</div>
+      <h3>AuditJE — Apoio à Análise Documental</h3>
+      <p>Selecione um tipo de verificação acima para iniciar a análise dos documentos do processo.</p>
+      <div class="empty-hints">
+        <div class="empty-hint">
+          <span class="empty-hint-icon">📋</span>
+          <div class="empty-hint-body">
+            <span class="empty-hint-title">Docs. apresentados</span>
+            <span class="empty-hint-desc">Documentos apresentados pelo candidato</span>
+          </div>
+        </div>
+        <div class="empty-hint">
+          <span class="empty-hint-icon">🔎</span>
+          <div class="empty-hint-body">
+            <span class="empty-hint-title">Processo completo</span>
+            <span class="empty-hint-desc">Todos os documentos do processo</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="painel-qualificacao" class="painel" style="flex:1;min-height:0;overflow:auto;">
+    <div class="ql-empty">A Qualificação é preenchida ao final da auditoria.</div>
+  </div>
+
+  <div id="painel-cand" class="painel" style="flex:1;min-height:0;">
+    <div id="cand-empty">
+      <div class="icon">📋</div>
+      <p>O relatório CAND será preenchido automaticamente<br>ao final da auditoria.</p>
+    </div>
+  </div>
+
+  <div id="painel-resumo" class="painel" style="flex:1;min-height:0;">
+    <div id="resumo-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:var(--text-muted);text-align:center;padding:40px 20px;">
+      <div style="font-size:36px;">📊</div>
+      <p>O resumo de documentação será gerado<br>ao finalizar a auditoria.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Painel Atos Processuais ────────────────────────────────────────── -->
+<!-- Painel "Atos processuais" removido -->
+<div id="painel-atos-removido" style="display:none"></div>
+
+<!-- ── Painel Alterações no CAND ──────────────────────────────────────── -->
+<!-- Painel "Alterações no CAND" removido -->
+
+<!-- Painel Hipoteses de texto (gestao - Fase 2) -->
+<div id="painel-hipoteses" class="painel" style="padding:14px;overflow-y:auto;"></div>
+
+<!-- ── Modal: Concluir Tarefa ─────────────────────────────────────────── -->
+<div id="modal-concluir-overlay">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:400px;max-width:95vw;box-shadow:0 12px 40px rgba(0,0,0,0.55);">
+    <div style="font-weight:700;font-size:var(--fs-sm);color:var(--accent);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:10px;">✅ CONCLUIR TAREFA</div>
+    <div id="modal-concluir-descricao" style="font-size:var(--fs-sm);color:var(--text-soft);margin-bottom:12px;line-height:1.5;"></div>
+    <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Observação (opcional)</label>
+    <textarea id="modal-concluir-obs" rows="3"
+      style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius-sm);font-size:var(--fs-sm);font-family:var(--font-mono);resize:vertical;outline:none;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button id="btn-concluir-cancelar" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-family:var(--font-sans);">Cancelar</button>
+      <button id="btn-concluir-confirmar" style="background:var(--success);border:none;color:#fff;padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-weight:600;font-family:var(--font-sans);">Marcar concluída</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Nova Tarefa (Modo Chefe) ────────────────────────────────── -->
+<div id="modal-nova-tarefa-overlay">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:480px;max-width:95vw;box-shadow:0 12px 40px rgba(0,0,0,0.55);">
+    <div style="font-weight:700;font-size:var(--fs-sm);color:var(--accent);font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:14px;">➕ NOVA TAREFA</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Processo (CNJ) *</label>
+        <input id="nt-processo" type="text" placeholder="0001234-56.2024.6.05.0000" spellcheck="false"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-mono);">
+      </div>
+      <div>
+        <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Tipo *</label>
+        <select id="nt-tipo"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+          <option value="analise_docs">📋 Análise de Documentos</option>
+          <option value="alteracao_cand">✏️ Alteração CAND</option>
+          <option value="atualizacao_autucao">📝 Atualização de Autuação</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Candidato</label>
+        <input id="nt-candidato" type="text" placeholder="Nome do candidato"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+      </div>
+      <div>
+        <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Cargo</label>
+        <input id="nt-cargo" type="text" placeholder="Cargo pretendido"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Servidor atribuído *</label>
+      <input id="nt-servidor" type="text" list="nt-servidores-list" placeholder="Nome do servidor"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);">
+      <datalist id="nt-servidores-list"></datalist>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:var(--fs-xs);color:var(--text-muted);display:block;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase;">Observação</label>
+      <textarea id="nt-obs" rows="2" placeholder="(opcional)"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:var(--fs-sm);padding:7px 10px;outline:none;font-family:var(--font-sans);resize:vertical;"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="btn-nt-cancelar" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-family:var(--font-sans);">Cancelar</button>
+      <button id="btn-nt-criar" style="background:var(--accent);border:none;color:#fff;padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-weight:600;font-family:var(--font-sans);">Criar Tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Shared Kernel ──────────────────���───────────────────────────── -->
+<script src="config.js"></script>
+
+<!-- ── Domain ────────────────────────────────────────────────────── -->
+<script src="domain/analysis.js"></script>
+<script src="domain/certidoes.js"></script>
+
+<!-- ── Infrastructure ───────────────────────────────��───────────── -->
+<script src="infra/ocr-cache.js"></script>
+<script src="infra/pdfextract.js"></script>
+
+<!-- ── User Interface ───────────────────────────────────────────── -->
+<script src="ui/auditoria.js"></script>
+<script src="ui/render.js"></script>
+<script src="ui/hipoteses.js"></script>
+<script src="ui/relatorios.js"></script>
+<script src="ui/cand.js"></script>
+<script src="ui/qualificacao.js"></script>
+<script src="ui/tarefas.js"></script>
+<script src="ui/atos.js"></script>
+
+<!-- ── Entry Point ────────────────────────────────��─────────────── -->
+<script src="chat.js"></script>
+</body>
+</html>

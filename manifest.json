@@ -1,0 +1,86 @@
+{
+   "action": {
+      "default_icon": "public/icon-128.png",
+      "default_popup": "popup.html",
+      "default_title": "AuditJE"
+   },
+   "browser_specific_settings": {
+      "gecko": {
+         "id": "chatje@extensao",
+         "strict_min_version": "109.0"
+      }
+   },
+   "content_scripts": [
+      {
+         "js": [
+            "auditje-open-overlay.js"
+         ],
+         "matches": [
+            "https://pje1g-sp.tse.jus.br/*",
+            "https://pje2g-sp.tse.jus.br/*",
+            "https://pje.tre-sp.jus.br/*",
+            "https://pje2g-tc-sp.tse.jus.br/*"
+         ],
+         "run_at": "document_start"
+      },
+      {
+         "js": [
+            "content.js",
+            "arvore-cards.js"
+         ],
+         "matches": [
+            "https://pje1g-sp.tse.jus.br/*",
+            "https://pje2g-sp.tse.jus.br/*",
+            "https://pje.tre-sp.jus.br/*",
+            "https://pje2g-tc-sp.tse.jus.br/*"
+         ],
+         "run_at": "document_idle"
+      }
+   ],
+   "content_security_policy": {
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+   },
+   "description": "AuditJE",
+   "host_permissions": [
+      "https://pje1g-sp.tse.jus.br/*",
+      "https://pje2g-sp.tse.jus.br/*",
+      "https://pje.tre-sp.jus.br/*",
+      "https://pje2g-tc-sp.tse.jus.br/*",
+      "https://script.google.com/*",
+      "https://script.googleusercontent.com/*"
+   ],
+   "icons": {
+      "128": "public/icon-128.png"
+   },
+   "manifest_version": 3,
+   "minimum_chrome_version": "116",
+   "name": "AuditJE",
+   "permissions": [
+      "storage"
+   ],
+   "version": "2.2.67",
+   "web_accessible_resources": [
+      {
+         "matches": [
+            "https://pje1g-sp.tse.jus.br/*",
+            "https://pje2g-sp.tse.jus.br/*",
+            "https://pje.tre-sp.jus.br/*",
+            "https://pje2g-tc-sp.tse.jus.br/*"
+         ],
+         "resources": [
+            "chat.html",
+            "public/*",
+            "lib/pdf.min.mjs",
+            "lib/pdf.worker.min.mjs",
+            "lib/tesseract.min.js",
+            "lib/tesseract.worker.min.js",
+            "lib/tesseract-core.wasm.js",
+            "lib/lang/por.traineddata",
+            "lib/lang/*"
+         ]
+      }
+   ],
+   "background": {
+      "service_worker": "background.js"
+   }
+}
